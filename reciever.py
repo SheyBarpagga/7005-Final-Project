@@ -1,12 +1,11 @@
 import socket
 import sys
 import header
-import utils
-
-
 from ipaddress import ip_address, IPv4Address, IPv6Address
 
-def create_socket():
+seq_list = []
+
+def create_socket()-> tuple[socket.socket, str, int]:
     sock
     port = get_port()
     try:
@@ -33,20 +32,42 @@ def get_port():
     except:
         print("port must be an int")
 
-def recv_convert(sock: socket):
+def recv_convert(sock: socket)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.socket.recvfrom(1024)
-    head = utils.bits_to_header(data) 
-    body = utils.get_body(data)
+    head = header.bits_to_header(data) 
+    body = header.get_body(data)
     return (head, body, addr)
+
+def keep_sequence():
+    sorted(seq_list, key=lambda data: data[0].seq_num)
+
+def print_data():
+    if seq_list[-1][0].seq_num != (seq_list[-2][0].seq_num + 1):
+        return
+    else:
+        #
+        
 
 
 def main():
     sock, ip, port = create_socket()
+    seq_num = 1
     while True:
-        head, body = recv_convert()
+        head, body, addr = recv_convert()
         if head.syn == 1:
-            seq_num = 1
             ack_num = head.seq_num + 1
+            syn_ack = header.Header(seq_num, ack_num, 1, 1)
+            sock.sendto(syn_ack.bits(), addr)
+        else:
+            seq_num += 1
+            ack_num = head.seq_num + 1
+            ack = header.Header(seq_num, ack_num, 0, 1)
+            seq_list.append([head, body])
+            keep_sequence()
+            sock.sendto(ack.bits, addr)
 
-    
-create_socket()
+
+
+
+
+main()
