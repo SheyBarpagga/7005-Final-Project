@@ -8,6 +8,12 @@ HOST = sys.argv[1]
 PORT = int(sys.argv[2])
 buffer = 1024
 
+sender_details = {
+    "seq_num": 0,
+    "ack_num": 0,
+    "syn": 1,
+    "ack": 0
+}
 
 def setup_socket(ip) -> socket.socket:
     try:
@@ -20,23 +26,28 @@ def setup_socket(ip) -> socket.socket:
     except ValueError as e:
         raise ValueError(f'Invalid IP: {ip}') from e
 
-def send_message(message, sock):
+def send_message(message, sock, seq_num, ack_num, syn, ack_flag):
     attempts = 0
+
     while attempts < 3:
-        head = header.Header(1, 0, 1, 0) # hardcoded placeholder
+        head = header.Header(seq_num, ack_num, syn, ack_flag)
         header_bits = head.bits()
         data = message.encode()
         packet = header_bits + data
-        print(f'Packet sent line 20: {packet}')
-
+        # print(f'Packet sent line 20: {packet}')
+        print(f'Sent Header:')
+        head.details()
         sock.sendto(packet, (HOST, PORT))
         try:
-            # add seq num, ack num logic as well
             ack, _ = sock.recvfrom(buffer)
-
             head = header.bits_to_header(ack)
+            print("Received:")
             head.details()
-            print(f'received ack: {head.get_ack() == 1}\n')
+            # print(f'received ack: {head.get_ack() == 1}\n')
+
+            sender_details["seq_num"] = seq_num + 1
+            ack_num = head.get_ack_num()
+            sender_details["ack_num"] = ack_num
             return True
         except socket.timeout:
             print("No ack\n")
@@ -46,6 +57,7 @@ def send_message(message, sock):
 
 
 def main():
+
     try:
         sock = setup_socket(HOST)
         sock.settimeout(3)
@@ -55,8 +67,12 @@ def main():
 
     try:
         while True:
+            seq_num = sender_details["seq_num"]
+            ack_num = sender_details["ack_num"]
+            syn = sender_details["syn"]
+            ack_flag = sender_details["ack"]
             user_input = input("Enter message: ")  # Doesn't work for < #.txt
-            if not send_message(user_input, sock):
+            if not send_message(user_input, sock, seq_num, ack_num, syn, ack_flag):
                 print("failed to send after 3 attempts")
     except KeyboardInterrupt:
         print("\nClient shut down server")
