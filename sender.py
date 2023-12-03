@@ -11,7 +11,7 @@ buffer = 1024
 sender_details = {
     "seq_num": 0,
     "ack_num": 0,
-    "syn": 1,
+    "syn": 0,
     "ack": 0
 }
 
@@ -26,7 +26,7 @@ def setup_socket(ip) -> socket.socket:
     except ValueError as e:
         raise ValueError(f'Invalid IP: {ip}') from e
 
-def send_message(message, sock, seq_num, ack_num, syn, ack_flag):
+def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
     attempts = 0
 
     while attempts < 3:
@@ -54,7 +54,27 @@ def send_message(message, sock, seq_num, ack_num, syn, ack_flag):
             attempts += 1
     return False
 
+def handshake(sock: socket.socket):
+    head = header.Header(0, 0, 1, 0)
+    header_bits = head.bits()
+    sock.sendto(header_bits, (HOST, PORT))
+    try:
+        syn_ack, _ = sock.recvfrom(buffer)
+        header_bits = header.bits_to_header(syn_ack)
+        if header_bits.get_ack() is 1 and header_bits.get_syn() is 1:
+            print("You are now connected!")
+            header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 0, 1)
+            sock.sendto(header_bits, (HOST, PORT))
+        else:
+            print("handshake unsuccessful")
+            exit(1)
+    except socket.timeout:
+        print("The socket timed out.")
+        exit(1)
+    
 
+
+            
 
 def main():
 
@@ -65,13 +85,17 @@ def main():
         print(e)
         exit(1)
 
+    handshake(sock)
+
     try:
         while True:
+
             seq_num = sender_details["seq_num"]
             ack_num = sender_details["ack_num"]
             syn = sender_details["syn"]
             ack_flag = sender_details["ack"]
             user_input = input("Enter message: ")  # Doesn't work for < #.txt
+
             if not send_message(user_input, sock, seq_num, ack_num, syn, ack_flag):
                 print("failed to send after 3 attempts")
     except KeyboardInterrupt:
