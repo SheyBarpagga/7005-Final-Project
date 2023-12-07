@@ -7,7 +7,13 @@ seq_list = []
 
 HOST = sys.argv[1]
 PORT = sys.argv[2]
+
 buffer = 1024
+
+reciever_details = {
+    "seq_num": 0,
+    "ack_num": 1,
+}
 
 
 def create_socket()-> socket.socket:
@@ -21,9 +27,11 @@ def create_socket()-> socket.socket:
     if ip is IPv4Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock.bind(HOST, PORT)
+        sock.settimeout(20)
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(HOST, PORT)
+        sock.settimeout(20)
     return sock
     
 
@@ -45,24 +53,35 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
 def keep_sequence():
     sorted(seq_list, key=lambda data: data[0].seq_num)
 
-# def print_data():
-#     if seq_list[-1][0].seq_num != (seq_list[-2][0].seq_num + 1):
-#         return
-#     else:
-#         #
+def check_seq(head: header.Header, sock: socket.socket, addr):
+    h: header.Header
+    for h in seq_list:
+        if h.get_seq_num() == head.get_seq_num():
+            print("Recieved duplicate data\nsequence number: " + h.get_seq_num())
+            sock.sendto(h.bits(), addr)
+            return False
+    seq_list.append(head)
+    reciever_details["ack_num"] += header.get_body(head)
+    return True
+
+def create_packet(syn, ack_flag) -> bytes:
+    head = header.Header(reciever_details["seq_num"], reciever_details["ack_num"], syn, ack_flag)
+    header_bits = head.bits()
+    print(f'Sending Header:')
+    head.details()
+    return header_bits
+
         
 def handshake(sock: socket.socket):
     try:
-        syn_ack, _ = sock.recvfrom(buffer)
-        header_bits = header.bits_to_header(syn_ack)
-        if header_bits.get_syn() is 1:
-            header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 1, 1)
-            sock.sendto(header_bits, (HOST, PORT))
-            sock.recvfrom(buffer)
-            ack, _ = sock.recvfrom(buffer)
-            header_bits = header.bits_to_header(ack)
-            if header_bits.get_ack is 1:
+        head, body, addr = recv_convert(sock)
+        if head.get_syn() is 1:
+            send_ack(sock, addr, 1)
+            head, body, addr = recv_convert(sock)
+            if head.get_ack is 1:
+                reciever_details["seq_num"] += 1
                 print("Handshake successful, you are now connected!")
+                return addr
         else:
             print("handshake unsuccessful")
             exit(1)
@@ -70,19 +89,28 @@ def handshake(sock: socket.socket):
         print("The socket timed out.")
         exit(1)
 
+def send_ack(sock: socket.socket, addr, syn):
+    packet = create_packet(syn, 1)
+    sock.sendto(packet, addr)
+
+def handle_msg(sock: socket.socket, addr):
+    head = header.Header(0,0,0,0)
+    try:
+        while not check_seq(head, sock, addr):
+            head, body, addr = recv_convert(sock)
+        print("Recieved message:\n" + body)
+    except socket.timeout:
+        print("The other side has disconnected, the socket timed out")
+        exit(0)
+        
+        
+        
+
 def main():
     sock = create_socket()
-    seq_num = 1
-
+    addr = handshake(sock)
     while True:
-        head, body, addr = recv_convert(sock)
-        seq_num += 1
-        ack_num = head.seq_num + 1
-        ack = header.Header(seq_num, ack_num, 0, 1)
-        seq_list.append([head, body])
-        keep_sequence()
-        sock.sendto(ack.bits, addr)
-
+        handle_msg(sock, addr)
 
 
 

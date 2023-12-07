@@ -8,11 +8,8 @@ from ipaddress import ip_address, IPv4Address, IPv6Address
 
 
 RECV_HOST = sys.argv[1]
-RECV_PORT = sys.argv[2]
-SEND_HOST = sys.argv[3]
-SEND_PORT = sys.argv[4]
-
-HOST = sys.argv[5]
+SEND_PORT = sys.argv[2]
+HOST = sys.argv[3]
 
 buffer = 1024
 
