@@ -6,12 +6,12 @@ from ipaddress import ip_address, IPv4Address, IPv6Address
 seq_list = []
 
 HOST = sys.argv[1]
-PORT = sys.argv[2]
+PORT = int(sys.argv[2])
 buffer = 1024
 
 
 def create_socket()-> socket.socket:
-    sock
+    # sock
     check_port()
     try:
         ip = type(ip_address(HOST))
@@ -19,11 +19,13 @@ def create_socket()-> socket.socket:
         print("Invalid IP")
         exit(1)
     if ip is IPv4Address:
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.bind(HOST, PORT)
-    elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(HOST, PORT)
+        sock.bind((HOST, PORT))
+        print(f'Socket connected to {HOST},{PORT}')
+    elif ip is IPv6Address:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        sock.bind((HOST, PORT))
+        print(f'Socket connected to {HOST},{PORT}')
     return sock
     
 
@@ -55,13 +57,13 @@ def handshake(sock: socket.socket):
     try:
         syn_ack, _ = sock.recvfrom(buffer)
         header_bits = header.bits_to_header(syn_ack)
-        if header_bits.get_syn() is 1:
+        if header_bits.get_syn() == 1:
             header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 1, 1)
-            sock.sendto(header_bits, (HOST, PORT))
+            sock.sendto(header_bits.bits(), (HOST, PORT))
             sock.recvfrom(buffer)
             ack, _ = sock.recvfrom(buffer)
             header_bits = header.bits_to_header(ack)
-            if header_bits.get_ack is 1:
+            if header_bits.get_ack == 1:
                 print("Handshake successful, you are now connected!")
         else:
             print("handshake unsuccessful")

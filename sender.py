@@ -77,7 +77,7 @@ class Sender:
             syn_ack, _ = sock.recvfrom(self.buffer)
             self.packet_count += 1
             header_bits = header.bits_to_header(syn_ack)
-            if header_bits.get_ack() is 1 and header_bits.get_syn() is 1:
+            if header_bits.get_ack() == 1 and header_bits.get_syn() == 1:
                 print("You are now connected!")
                 header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 0, 1)
                 sock.sendto(header_bits.bits(), (self.HOST, self.PORT))
