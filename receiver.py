@@ -64,7 +64,6 @@ def check_seq(head: header.Header, sock: socket.socket, addr):
             sock.sendto(h.bits(), addr)
             return False
     seq_list.append(head)
-    reciever_details["ack_num"] += header.get_body(head)
     return True
 
 def create_packet(syn, ack_flag) -> bytes:
@@ -92,6 +91,7 @@ def handshake(sock: socket.socket):
         print("The socket timed out.")
         exit(1)
 
+
 def send_ack(sock: socket.socket, addr, syn):
     packet = create_packet(syn, 1)
     sock.sendto(packet, addr)
@@ -102,6 +102,7 @@ def handle_msg(sock: socket.socket, addr):
         while not check_seq(head, sock, addr):
             head, body, addr = recv_convert(sock)
         print("Recieved message:\n" + body)
+        reciever_details["ack_num"] += body
     except socket.timeout:
         print("The other side has disconnected, the socket timed out")
         exit(0)

@@ -12,22 +12,12 @@ HOST = sys.argv[1]
 PORT = int(sys.argv[2])
 buffer = 1024
 connected = False
-
+sender_details = {
+    "seq_num": 0,
+    "ack_num": 1,
+}
 ack_list = []
 
-class Sender:
-    def __init__(self):
-        self.HOST = sys.argv[1]
-        self.PORT = int(sys.argv[2])
-        self.buffer = 1024
-        self.seq_num = 0
-        self.ack_num = 0
-        self.syn = 0
-        self.ack = 0
-        self.packet_count = 0
-        self.x_vals = []
-        self.y_vals = []
-        self.index = count()
 
 def setup_socket() -> socket.socket:
     try:
@@ -117,56 +107,110 @@ def handshake(sock: socket.socket):
     
     
 
-        while attempts < 3:
-            head = header.Header(seq_num, ack_num, syn, ack_flag)
-            header_bits = head.bits()
-            data = message.encode()
-            packet = header_bits + data
-            # print(f'Packet sent line 20: {packet}')
-            print(f'Sent Header:')
-            head.details()
-            sock.sendto(packet, (self.HOST, self.PORT))
-            self.packet_count += 1
-            try:
-                ack, _ = sock.recvfrom(self.buffer)
-                head = header.bits_to_header(ack)
-                print("Received:")
-                head.details()
-                # print(f'received ack: {head.get_ack() == 1}\n')
+    # while attempts < 3:
+    #     head = header.Header(seq_num, ack_num, syn, ack_flag)
+    #     header_bits = head.bits()
+    #     data = message.encode()
+    #     packet = header_bits + data
+    #     # print(f'Packet sent line 20: {packet}')
+    #     print(f'Sent Header:')
+    #     head.details()
+    #     sock.sendto(packet, (self.HOST, self.PORT))
+    #     self.packet_count += 1
+    #     try:
+    #         ack, _ = sock.recvfrom(self.buffer)
+    #         head = header.bits_to_header(ack)
+    #         print("Received:")
+    #         head.details()
+    #         # print(f'received ack: {head.get_ack() == 1}\n')
 
-                self.seq_num = seq_num + 1
-                ack_num = head.get_ack_num()
-                self.ack_num = ack_num
+    #         self.seq_num = seq_num + 1
+    #         ack_num = head.get_ack_num()
+    #         self.ack_num = ack_num
 
-                self.packet_count += 1
-                return True
-            except socket.timeout:
-                print("No ack\n")
-                attempts += 1
-        return False
+    #         self.packet_count += 1
+    #         return True
+    #     except socket.timeout:
+    #         print("No ack\n")
+    #         attempts += 1
+    # return False
     
-    def handshake(self, sock: socket.socket):
-        head = header.Header(0, 0, 1, 0)
-        header_bits = head.bits()
-        sock.sendto(header_bits, (self.HOST, self.PORT))
-        self.packet_count += 1
-        try:
-            syn_ack, _ = sock.recvfrom(self.buffer)
-            self.packet_count += 1
-            header_bits = header.bits_to_header(syn_ack)
-            print("Received:")
-            header_bits.details()
-            if header_bits.get_ack() == 1 and header_bits.get_syn() == 1:
-                print("You are now connected!")
-                header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 0, 1)
-                sock.sendto(header_bits.bits(), (self.HOST, self.PORT))
-                self.packet_count += 1
-            else:
-                print("handshake unsuccessful")
-                exit(1)
-        except socket.timeout:
-            print("The socket timed out.")
-            exit(1)
+    # def handshake(self, sock: socket.socket):
+    #     head = header.Header(0, 0, 1, 0)
+    #     header_bits = head.bits()
+    #     sock.sendto(header_bits, (self.HOST, self.PORT))
+    #     self.packet_count += 1
+    #     try:
+    #         syn_ack, _ = sock.recvfrom(self.buffer)
+    #         self.packet_count += 1
+    #         header_bits = header.bits_to_header(syn_ack)
+    #         print("Received:")
+    #         header_bits.details()
+    #         if header_bits.get_ack() == 1 and header_bits.get_syn() == 1:
+    #             print("You are now connected!")
+    #             header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 0, 1)
+    #             sock.sendto(header_bits.bits(), (self.HOST, self.PORT))
+    #             self.packet_count += 1
+    #         else:
+    #             print("handshake unsuccessful")
+    #             exit(1)
+    #     except socket.timeout:
+    #         print("The socket timed out.")
+    #         exit(1)
+
+
+
+    
+
+def main():
+    sender = Sender()
+
+    try:
+        sock = setup_socket()
+        sock.settimeout(1)
+    except ValueError as e:
+        print(e)
+        exit(1)
+    handshake(sock)
+    try:
+        while True:
+            seq_num = sender_details["seq_num"]
+            ack_num = sender_details["ack_num"]
+            user_input = input("Enter message: ")  # Doesn't work for < #.txt
+            if not send_message(user_input, sock, seq_num, ack_num, 0, 0):
+                print("failed to send after 3 attempts")
+                exit()
+    except KeyboardInterrupt:
+        print("\nClient shut down server")
+    finally:
+        sock.close()
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+
+
+
+
+
+class Sender:
+    def __init__(self):
+        self.HOST = sys.argv[1]
+        self.PORT = int(sys.argv[2])
+        self.buffer = 1024
+        self.seq_num = 0
+        self.ack_num = 0
+        self.syn = 0
+        self.ack = 0
+        self.packet_count = 0
+        self.x_vals = []
+        self.y_vals = []
+        self.index = count()
 
     def get_host(self):
         return self.HOST
@@ -210,51 +254,4 @@ def handshake(sock: socket.socket):
             print(e)
             exit(1)
 
-        sender.handshake(sock)
-
-        try:
-            while True:
-
-                seq_num = sender.get_seq_num()
-                ack_num = sender.get_ack_num()
-                syn = sender.get_syn()
-                ack_flag = sender.get_ack()
-                user_input = input("Enter message: ")  # Doesn't work for < #.txt
-
-                if not sender.send_message(user_input, sock, seq_num, ack_num, syn, ack_flag):
-                    print("failed to send after 3 attempts")
-        except KeyboardInterrupt:
-            print("\nClient shut down server")
-        finally:
-            sock.close()
-
-    
-
-def main():
-    sender = Sender()
-
-    try:
-        sock = setup_socket()
-        sock.settimeout(1)
-    except ValueError as e:
-        print(e)
-        exit(1)
-    handshake(sock)
-    try:
-        while True:
-            seq_num = sender_details["seq_num"]
-            ack_num = sender_details["ack_num"]
-            syn = sender_details["syn"]
-            ack_flag = sender_details["ack"]
-            user_input = input("Enter message: ")  # Doesn't work for < #.txt
-            if not send_message(user_input, sock, seq_num, ack_num, syn, ack_flag):
-                print("failed to send after 3 attempts")
-                exit()
-    except KeyboardInterrupt:
-        print("\nClient shut down server")
-    finally:
-        sock.close()
-
-
-if __name__ == '__main__':
-    main()
+        # sender.handshake(sock)
