@@ -42,6 +42,9 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
+    print("Received: ")
+    head.details()
+    print(body)
     return (head, body, addr)
 
 def keep_sequence():
@@ -55,14 +58,20 @@ def keep_sequence():
         
 def handshake(sock: socket.socket):
     try:
-        syn_ack, _ = sock.recvfrom(buffer)
+        syn_ack, client_addr = sock.recvfrom(buffer)
         header_bits = header.bits_to_header(syn_ack)
+        print("Received:")
+        header_bits.details()
         if header_bits.get_syn() == 1:
             header_bits = header.Header(header_bits.get_seq_num(), header_bits.get_ack_num() + 1, 1, 1)
-            sock.sendto(header_bits.bits(), (HOST, PORT))
+            sock.sendto(header_bits.bits(), client_addr)
+            print("Sent: ")
+            header_bits.details()
             sock.recvfrom(buffer)
             ack, _ = sock.recvfrom(buffer)
             header_bits = header.bits_to_header(ack)
+            print("Received")
+            header_bits.details()
             if header_bits.get_ack == 1:
                 print("Handshake successful, you are now connected!")
         else:
@@ -74,6 +83,7 @@ def handshake(sock: socket.socket):
 
 def main():
     sock = create_socket()
+    handshake(sock)
     seq_num = 1
 
     while True:
@@ -83,7 +93,9 @@ def main():
         ack = header.Header(seq_num, ack_num, 0, 1)
         seq_list.append([head, body])
         keep_sequence()
-        sock.sendto(ack.bits, addr)
+        sock.sendto(ack.bits(), addr)
+        print("Sent:")
+        ack.details()
 
 
 
