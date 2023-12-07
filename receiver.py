@@ -17,7 +17,7 @@ reciever_details = {
 
 
 def create_socket()-> socket.socket:
-    sock
+    # sock
     check_port()
     try:
         ip = type(ip_address(HOST))
@@ -48,6 +48,9 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
+    print("Received: ")
+    head.details()
+    print(body)
     return (head, body, addr)
 
 def keep_sequence():

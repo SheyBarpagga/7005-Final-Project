@@ -14,19 +14,19 @@ HOST = sys.argv[3]
 buffer = 1024
 
 def create_socket()-> socket.socket:
-    sock
-    check_port()
+    # sock
+    # check_port(HOST)
     try:
         ip = type(ip_address(HOST))
     except ValueError:
         print("Invalid IP")
         exit(1)
     if ip is IPv4Address:
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.bind(HOST, SEND_PORT)
-    elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(HOST, SEND_PORT)
+        sock.bind((HOST, SEND_PORT))
+    elif ip is IPv6Address:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        sock.bind((HOST, SEND_PORT))
     return sock
 
 
@@ -53,17 +53,24 @@ def proxy():
         print(f"Received ACK from receiver: {ack_data.decode()}")
         send_to_sender(ack_data, proxy_sock, sender_addr)
 
+def sleep_rand(percentage):
+    if(random.uniform(0,100) < percentage):
+        time.sleep(random.uniform(0, 2))
+
+def drop_rand(percentage):
+    if(random.uniform(0,100) < percentage):
+        return True
 
 def send_to_receiver(data, sock: socket.socket, addr):
-    sleep_rand(25)
-    if drop_rand():
+    sleep_rand(0)
+    if drop_rand(0):
         print("Dropped packet to receiver")
     else:
         sock.sendto(data, addr)
 
 def send_to_sender(data, sock: socket.socket, addr):
-    sleep_rand(25)
-    if drop_rand():
+    sleep_rand(0)
+    if drop_rand(0):
         print("Dropped ACK to sender")
     else:
         sock.sendto(data, addr)
@@ -75,12 +82,6 @@ if __name__ == "__main__":
 
     proxy_thread.join()
 
-def sleep_rand(percentage):
-    if(random.uniform(0,100) < percentage):
-        time.sleep(random.uniform(0, 2))
 
-def drop_rand(percentage):
-    if(random.uniform(0,100) < percentage):
-        return True
 
 
