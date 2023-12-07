@@ -50,10 +50,6 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     return (head, body, addr)
 
 
-def update_seq(head: header.Header):
-    sender_details["seq_num"] += 1
-    ack_num = head.get_ack_num()
-    sender_details["ack_num"] = ack_num
 
 def check_ack(head: header.Header):
     h: header.Header
@@ -83,15 +79,11 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
 
         try:
             head = header.Header(0,0,0,0)
-
             while not check_ack(head):
                 head, body, addr = recv_convert(sock)
-                
+            sender_details["seq_num"] += head.get_seq_num()    
             get_syn_ack(head, sock)
-            update_seq(head)
-
             return True
-        
         except socket.timeout:
             print("No ack\n")
             attempts += 1
@@ -104,8 +96,37 @@ def handshake(sock: socket.socket):
     if not send_message("", sock, 0, 0, 1, 0):
         print("handshake unsuccessful")
         exit(1)
+
     
-    
+
+def main():
+    sender = Sender()
+    try:
+        sock = setup_socket()
+        sock.settimeout(1.5)
+    except ValueError as e:
+        print(e)
+        exit(1)
+    handshake(sock)
+    try:
+        while True:
+            user_input = input("Enter message: ")
+            if not send_message(user_input, sock, sender_details["seq_num"], sender_details["ack_num"], 0, 0):
+                print("failed to send after 3 attempts")
+                exit()
+    except KeyboardInterrupt:
+        print("\nClient shut down server")
+    finally:
+        sock.close()
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
 
     # while attempts < 3:
     #     head = header.Header(seq_num, ack_num, syn, ack_flag)
@@ -157,43 +178,6 @@ def handshake(sock: socket.socket):
     #     except socket.timeout:
     #         print("The socket timed out.")
     #         exit(1)
-
-
-
-    
-
-def main():
-    sender = Sender()
-
-    try:
-        sock = setup_socket()
-        sock.settimeout(1)
-    except ValueError as e:
-        print(e)
-        exit(1)
-    handshake(sock)
-    try:
-        while True:
-            seq_num = sender_details["seq_num"]
-            ack_num = sender_details["ack_num"]
-            user_input = input("Enter message: ")  # Doesn't work for < #.txt
-            if not send_message(user_input, sock, seq_num, ack_num, 0, 0):
-                print("failed to send after 3 attempts")
-                exit()
-    except KeyboardInterrupt:
-        print("\nClient shut down server")
-    finally:
-        sock.close()
-
-
-if __name__ == '__main__':
-    main()
-
-
-
-
-
-
 
 
 
