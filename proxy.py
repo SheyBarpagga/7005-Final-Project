@@ -10,9 +10,11 @@ from ipaddress import ip_address, IPv4Address, IPv6Address
 
 SEND_HOST = sys.argv[1]
 SEND_PORT = sys.argv[2]
-RECV_PORT = sys.argv[3]
-HOST = sys.argv[4]
-GUI_PORT = sys.argv[5]
+RECV_HOST = sys.argv[3]
+RECV_PORT = sys.argv[4]
+HOST = sys.argv[5]
+GUI_PORT = sys.argv[6]
+PORT = 34901
 
 F = open("proxy.csv", mode="w", newline='')
 WRITER = csv.writer(F)
@@ -21,30 +23,21 @@ WRITER = csv.writer(F)
 buffer = 1024
 
 
-def create_socket(host, port, b)-> socket.socket:
-    if b == 1:
-        try:
-            ip = type(ip_address(host))
-        except ValueError:
-            print("Invalid IP")
-            exit(1)
-        if ip is IPv4Address:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.bind((host, port))
-        elif ip is IPv6Address:
-            sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-            sock.bind((host, port))
-        return sock
-    else:
-        try:
-            ip = type(ip_address(HOST))
-        except ValueError:
-            print("Invalid IP")
-            exit(1)
-        if ip is IPv4Address:
-            return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        elif ip is IPv6Address:
-            return socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+def create_socket(host, port)-> socket.socket:
+    try:
+        ip = type(ip_address(host))
+    except ValueError:
+        print("Invalid IP")
+        exit(1)
+    if ip is IPv4Address:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, int(port)))
+    elif ip is IPv6Address:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, int(port)))
+    return sock
 
 def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
     if ack_flag == 1:
@@ -62,16 +55,18 @@ def create_gui_socket()-> socket.socket:
         exit(1)
     if ip is IPv4Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((HOST, GUI_PORT))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, int(GUI_PORT)))
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        sock.bind((HOST, GUI_PORT))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, int(GUI_PORT)))
     return sock
 
 
 
 def get_sockets()-> tuple[socket.socket, socket.socket]:
-    return create_socket(SEND_HOST, SEND_PORT, 0), create_socket(HOST, RECV_PORT, 1)
+    return create_socket(SEND_HOST, SEND_PORT), create_socket(HOST, RECV_PORT)
 
 
 def recv_print(sock: socket.socket)-> tuple[bytes, tuple]:
@@ -95,24 +90,27 @@ def gui_packet(data, msg):
     return create_packet(msg, head.get_seq_num(), head.get_ack_num(), 0, 0)
 
 
-def handle_packet(sock: socket.socket, gui_sock: socket.socket, drop, delay):
-    data, addr = recv_print(sock)
+def handle_packet(sock: socket.socket, gui_sock: socket.socket, drop, delay, data, addr):
     if drop_rand(drop):
         head = header.bits_to_header(data)
         print("Dropped packet:\nsequence number: " + head.get_seq_num() + "\nack number: " + head.get_ack_num())
         write_to_csv("drop: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
-        gui_sock.sendto(gui_packet(data, "drop"), addr)
+        gui_sock.sendto(gui_packet(data, "drop"), int(GUI_PORT))
         return
     if sleep_rand(delay):
         write_to_csv("delay: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
-        gui_sock.sendto(gui_packet(data, "delay"), addr)
+        gui_sock.sendto(gui_packet(data, "delay"), int(GUI_PORT))
     sock.sendto(data, addr)
 
 
 def handle_send(sock: socket.socket, gui_sock: socket.socket, drop, delay):
     try:
         while True:
-            handle_packet(sock, gui_sock, drop, delay)
+            data, _ = recv_print(sock)
+            if(_ == (SEND_HOST, SEND_PORT)):
+                handle_packet(sock, gui_sock, drop, delay, data, (RECV_HOST, RECV_PORT))
+            else:
+                handle_packet(sock, gui_sock, drop, delay, data, (SEND_HOST, SEND_PORT))
     except KeyboardInterrupt:
         print("Client shutdown proxy")
     finally:
@@ -143,10 +141,11 @@ def get_inputs():
 
 def main():
     data_drop, data_delay, ack_drop, ack_delay = get_inputs()
-    ack_sock, data_sock = get_sockets()
+    # ack_sock, data_sock = get_sockets()
+    sock = create_socket(HOST, PORT)
     gui_sock = create_gui_socket()
-    recv_thread = threading.Thread(target=handle_send, args=(ack_sock, gui_sock, ack_drop, ack_delay))
-    sender_thread = threading.Thread(target=handle_send, args=(data_sock, gui_sock, data_drop, data_delay))
+    recv_thread = threading.Thread(target=handle_send, args=(sock, gui_sock, ack_drop, ack_delay))
+    sender_thread = threading.Thread(target=handle_send, args=(sock, gui_sock, data_drop, data_delay))
 
 
     recv_thread.start()

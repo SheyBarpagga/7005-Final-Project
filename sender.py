@@ -11,6 +11,8 @@ from itertools import count
 
 HOST = sys.argv[1]
 PORT = int(sys.argv[2])
+PROXY_HOST = sys.argv[3]
+PROXY_PORT = int(sys.argv[4])
 
 F = open("sender.csv", mode="w", newline='')
 WRITER = csv.writer(F)
@@ -24,13 +26,38 @@ sender_details = {
 
 ack_list = []
 
+def create_gui_socket()-> tuple[socket.socket, tuple]:
+    # sock
+    # addr
+    try:
+        ip = type(ip_address(HOST))
+    except ValueError:
+        print("Invalid IP")
+        exit(1)
+    if ip is IPv4Address:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, 34879))
+        sock.listen(1)
+        client, addr = sock.accept()
+    elif ip is IPv6Address:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, 34879))
+        sock.listen(1)
+        client, addr = sock.accept()
+    return client, addr
 
 def setup_socket() -> socket.socket:
     try:
         if type(ip_address(HOST) is IPv4Address):
-            return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.bind((HOST, PORT))
+            return sock
         elif type(ip_address(HOST) is IPv6Address):
-            return socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            sock.bind((HOST, PORT))
+            return sock
         else:
             raise ValueError("Invalid IP type")
     except ValueError as e:
@@ -47,13 +74,14 @@ def create_packet(message: str, seq_num, ack_num, syn, ack_flag):
     return packet
 
 
-def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
+def recv_convert(sock: socket.socket, gui_sock: socket.socket, gui_addr)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
     print("Received:")
     head.details()
-    write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn, head.get_ack())
+    gui_sock.sendto(create_packet("ACK_RECV", 0, 0, 0, 0), gui_addr)
+    write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
     return (head, body, addr)
 
 
@@ -71,24 +99,25 @@ def check_ack(head: header.Header):
 def get_syn_ack(head: header.Header, sock: socket.socket):
     if(head.get_syn() == 1 and head.get_ack() == 1):
         packet = create_packet("", 1, 1, 0, 1)
-        sock.sendto(packet, (HOST, PORT))
+        sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
         print("You are now connected!")
         return
 
 
-def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
+def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag, gui_sock: socket.socket, gui_addr):
 
     attempts = 0
 
     while attempts < 3:
 
         packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
-        sock.sendto(packet, (HOST, PORT))
+        sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
+        gui_sock.sendto(create_packet("DATA_SENT", 0, 0, 0, 0), gui_addr)
         write_to_csv(message, seq_num, ack_num, syn, ack_flag)
         try:
             head = header.Header(0,0,0,0)
             while not check_ack(head):
-                head, body, addr = recv_convert(sock)
+                head, body, addr = recv_convert(sock, gui_sock, gui_addr)
             sender_details["seq_num"] += head.get_ack_num()
             write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
             get_syn_ack(head, sock)
@@ -100,8 +129,8 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
     return False
 
 
-def handshake(sock: socket.socket):
-    if not send_message("", sock, 0, 0, 1, 0):
+def handshake(sock: socket.socket, gui_sock: socket.socket, gui_addr):
+    if not send_message("", sock, 0, 0, 1, 0, gui_sock, gui_addr):
         print("handshake unsuccessful")
         exit(1)
     print("handshake successful")
@@ -117,19 +146,19 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
 
 def main():
     # sender = Sender()
-
-
     try:
         sock = setup_socket()
         sock.settimeout(1.5)
+        
     except ValueError as e:
         print(e)
         exit(1)
-    handshake(sock)
+    gui_sock, gui_addr = create_gui_socket()
+    handshake(sock, gui_sock, gui_addr)
     try:
         while True:
             user_input = input("Enter message: ")
-            if not send_message(user_input, sock, sender_details["seq_num"], sender_details["ack_num"], 0, 0):
+            if not send_message(user_input, sock, sender_details["seq_num"], sender_details["ack_num"], 0, 0, gui_sock, gui_addr):
                 print("failed to send after 3 attempts")
                 exit()
     except KeyboardInterrupt:
@@ -140,10 +169,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
 
 
     # while attempts < 3:

@@ -19,6 +19,27 @@ reciever_details = {
     "ack_num": 1,
 }
 
+def create_gui_socket()-> tuple[socket.socket, tuple]:
+    # sock
+    # addr
+    try:
+        ip = type(ip_address(HOST))
+    except ValueError:
+        print("Invalid IP")
+        exit(1)
+    if ip is IPv4Address:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, 34989))
+        sock.listen(1)
+        client, addr = sock.accept()
+    elif ip is IPv6Address:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((HOST, 34989))
+        sock.listen(1)
+        client, addr = sock.accept()
+    return client, addr
 
 def create_socket()-> socket.socket:
     # sock
@@ -30,10 +51,12 @@ def create_socket()-> socket.socket:
         exit(1)
     if ip is IPv4Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((HOST, PORT))
         sock.settimeout(20)
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((HOST, PORT))
         # sock.settimeout(20)
     return sock
@@ -96,12 +119,13 @@ def handshake(sock: socket.socket):
         exit(1)
 
 
-def send_ack(sock: socket.socket, addr, syn):
+def send_ack(sock: socket.socket, addr, syn, gui_sock: socket.socket, gui_addr):
     packet = create_packet(syn, 1)
     sock.sendto(packet, addr)
+    gui_sock.sendto(packet + "ACK_SENT".encode(), gui_addr)
 
 
-def handle_msg(sock: socket.socket, addr):
+def handle_msg(sock: socket.socket, addr, gui_sock: socket.socket, gui_addr):
     head = header.Header(0,0,0,0)
     try:
         head
@@ -111,7 +135,8 @@ def handle_msg(sock: socket.socket, addr):
             head, b, addr = recv_convert(sock)
         print("Recieved message:\n" + b)
         reciever_details["ack_num"] += len(b)
-        send_ack(sock, addr, 0)
+        gui_sock.sendto(head + "DATA_RECV", gui_addr)
+        send_ack(sock, addr, 0, gui_sock, gui_addr)
     except socket.timeout:
         print("The other side has disconnected, the socket timed out")
         exit(0)
@@ -128,10 +153,11 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
 
 def main():
     sock = create_socket()
+    gui_sock, gui_addr = create_gui_socket()
     addr = handshake(sock)
     while True:
         try:
-            handle_msg(sock, addr)
+            handle_msg(sock, addr, gui_sock, gui_addr)
         except socket.timeout:
             print("socket timed out")
             F.close()

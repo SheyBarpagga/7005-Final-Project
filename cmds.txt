@@ -1,0 +1,9 @@
+py sender.py 10.0.0.34 34901
+py receiver.py 10.0.0.34 34900
+py graph.py
+py proxy.py 10.0.0.34 34900 34901 10.0.0.34 34902
+
+py sender.py 10.0.0.34 34900 10.0.0.34 34901
+py proxy.py 10.0.0.34 34902 10.0.0.34 34900 10.0.0.34 34878
+py receiver.py 10.0.0.34 34902
+py graph.py
