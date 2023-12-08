@@ -16,7 +16,6 @@ F = open("sender.csv", mode="w", newline='')
 WRITER = csv.writer(F)
 
 buffer = 1024
-connected = False
 
 sender_details = {
     "seq_num": 0,
@@ -61,6 +60,8 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
 
 def check_ack(head: header.Header):
     h: header.Header
+    if head.get_syn() == 0 and head.get_ack() == 0:
+        return False
     for h in ack_list:
         if h.get_ack_num() == head.get_ack_num():
             return False
@@ -68,13 +69,12 @@ def check_ack(head: header.Header):
     return True
 
 def get_syn_ack(head: header.Header, sock: socket.socket):
-    if(head.get_syn == 1 and head.get_ack == 1):
-        if(not connected):
-            packet = create_packet("", 1, 1, 0, 1)
-            sock.sendto(packet, (HOST, PORT))
-            connected = True
-            print("You are now connected!")
-        print("duplicate syn,ack recieved")
+    if(head.get_syn() == 1 and head.get_ack() == 1):
+        packet = create_packet("", 1, 1, 0, 1)
+        sock.sendto(packet, (HOST, PORT))
+        print("You are now connected!")
+        return
+
 
 def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
 
@@ -104,6 +104,7 @@ def handshake(sock: socket.socket):
     if not send_message("", sock, 0, 0, 1, 0):
         print("handshake unsuccessful")
         exit(1)
+    print("handshake successful")
 
 def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
     if ack_flag == 1:
