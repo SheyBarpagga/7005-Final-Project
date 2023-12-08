@@ -9,7 +9,7 @@ seq_list = []
 HOST = sys.argv[1]
 PORT = sys.argv[2]
 
-F = open("reciever.csv", mode="w", newline='')
+F = open("receiver.csv", mode="w", newline='')
 WRITER = csv.writer(F)
 
 buffer = 1024
@@ -30,11 +30,11 @@ def create_socket()-> socket.socket:
         exit(1)
     if ip is IPv4Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.bind(HOST, PORT)
+        sock.bind(HOST)
         sock.settimeout(20)
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(HOST, PORT)
+        sock.bind(HOST)
         sock.settimeout(20)
     return sock
     
@@ -80,10 +80,10 @@ def create_packet(syn, ack_flag) -> bytes:
 def handshake(sock: socket.socket):
     try:
         head, body, addr = recv_convert(sock)
-        if head.get_syn() is 1:
+        if head.get_syn() == 1:
             send_ack(sock, addr, 1)
             head, body, addr = recv_convert(sock)
-            if head.get_ack is 1:
+            if head.get_ack == 1:
                 reciever_details["seq_num"] += 1
                 print("Handshake successful, you are now connected!")
                 return addr
