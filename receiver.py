@@ -1,12 +1,16 @@
 import socket
 import sys
 import header
+import csv
 from ipaddress import ip_address, IPv4Address, IPv6Address
 
 seq_list = []
 
 HOST = sys.argv[1]
 PORT = sys.argv[2]
+
+F = open("reciever.csv", mode="w", newline='')
+WRITER = csv.writer(F)
 
 buffer = 1024
 
@@ -48,9 +52,7 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
-    print("Received: ")
-    head.details()
-    print(body)
+    write_to_csv(body, head.get_seq_num(), head.get_ack_num, head.get_syn(), head.get_ack())
     return (head, body, addr)
 
 def keep_sequence():
@@ -71,6 +73,7 @@ def create_packet(syn, ack_flag) -> bytes:
     header_bits = head.bits()
     print(f'Sending Header:')
     head.details()
+    write_to_csv("", reciever_details["seq_num"], reciever_details["ack_num"], syn, ack_flag)
     return header_bits
 
         
@@ -96,18 +99,27 @@ def send_ack(sock: socket.socket, addr, syn):
     packet = create_packet(syn, 1)
     sock.sendto(packet, addr)
 
+
 def handle_msg(sock: socket.socket, addr):
     head = header.Header(0,0,0,0)
     try:
         while not check_seq(head, sock, addr):
             head, body, addr = recv_convert(sock)
         print("Recieved message:\n" + body)
-        reciever_details["ack_num"] += body
+        reciever_details["ack_num"] += len(body)
+        send_ack(sock, addr, 0)
     except socket.timeout:
         print("The other side has disconnected, the socket timed out")
         exit(0)
         
-        
+def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
+    if ack_flag == 1:
+        data = ["Sent ack", seq_num, ack_num, syn, ack_flag]
+        WRITER.writerow(data)
+    else:
+        data = ["Recieved message: " + message, seq_num, ack_num, syn, ack_flag]
+        WRITER.writerow(data)
+       
         
 
 def main():

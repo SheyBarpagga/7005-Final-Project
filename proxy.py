@@ -4,6 +4,7 @@ import threading
 import time
 import sys
 import header
+import csv
 from ipaddress import ip_address, IPv4Address, IPv6Address
 
 
@@ -13,7 +14,12 @@ RECV_PORT = sys.argv[3]
 HOST = sys.argv[4]
 GUI_PORT = sys.argv[5]
 
+F = open("proxy.csv", mode="w", newline='')
+WRITER = csv.writer(F)
+
+
 buffer = 1024
+
 
 def create_socket(host, port, b)-> socket.socket:
     if b == 1:
@@ -40,6 +46,14 @@ def create_socket(host, port, b)-> socket.socket:
         elif ip is IPv6Address:
             return socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
+def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
+    if ack_flag == 1:
+        data = ["ack", seq_num, ack_num, syn, ack_flag]
+        WRITER.writerow(data)
+    else:
+        data = ["data: " + message, seq_num, ack_num, syn, ack_flag]
+        WRITER.writerow(data)
+
 def create_gui_socket()-> socket.socket:
     try:
         ip = type(ip_address(HOST))
@@ -54,63 +68,68 @@ def create_gui_socket()-> socket.socket:
         sock.bind((HOST, GUI_PORT))
     return sock
 
-    
+
 
 def get_sockets()-> tuple[socket.socket, socket.socket]:
     return create_socket(SEND_HOST, SEND_PORT, 0), create_socket(HOST, RECV_PORT, 1)
 
+
 def recv_print(sock: socket.socket)-> tuple[bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
-    head = header.bits_to_header(data) 
+    head = header.bits_to_header(data)
     print("Received: ")
     head.details()
     return (data, addr)
 
-def handle_ack(sock: socket.socket, drop, delay):
+
+def create_packet(message: str, seq_num, ack_num, syn, ack_flag):
+    head = header.Header(seq_num, ack_num, syn, ack_flag)
+    header_bits = head.bits()
+    data = message.encode()
+    packet = header_bits + data
+    return packet
+
+
+def gui_packet(data, msg):
+    head = header.bits_to_header(data)
+    return create_packet(msg, head.get_seq_num(), head.get_ack_num(), 0, 0)
+
+
+def handle_packet(sock: socket.socket, gui_sock: socket.socket, drop, delay):
     data, addr = recv_print(sock)
     if drop_rand(drop):
-        print("Dropped ACK to sender")
-    sleep_rand(delay)
+        head = header.bits_to_header(data)
+        print("Dropped packet:\nsequence number: " + head.get_seq_num() + "\nack number: " + head.get_ack_num())
+        write_to_csv("drop: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
+        gui_sock.sendto(gui_packet(data, "drop"), addr)
+        return
+    if sleep_rand(delay):
+        write_to_csv("delay: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
+        gui_sock.sendto(gui_packet(data, "delay"), addr)
     sock.sendto(data, addr)
-    return(data, addr)
 
-def handle_data(sock: socket.socket, drop, delay):
-    data, addr = recv_print(sock)
-    if drop_rand(drop):
-        print("Dropped data to reciever")
-    sleep_rand(delay)
-    sock.sendto(data, addr)
-    return (data, addr)
 
-def handle_recv(sock: socket.socket, gui_sock: socket.socket, drop, delay):
+def handle_send(sock: socket.socket, gui_sock: socket.socket, drop, delay):
     try:
         while True:
-            data, addr = handle_ack(sock, drop, delay)
-            gui_sock.sendto(data, addr)
+            handle_packet(sock, gui_sock, drop, delay)
     except KeyboardInterrupt:
         print("Client shutdown proxy")
     finally:
         sock.close()
         exit(0)
 
-def handle_sender(sock: socket.socket, gui_sock: socket.socket, drop, delay):
-    try:
-        while True:
-            data, addr = handle_data(sock, drop, delay)
-            gui_sock.sendto(data, addr)
-    except KeyboardInterrupt:
-        print("Client shutdown proxy")
-    finally:
-        sock.close()
-        exit(0)
 
 def sleep_rand(percentage):
     if(random.uniform(0,100) < percentage):
         time.sleep(random.uniform(0, 2.5))
+        return True
+
 
 def drop_rand(percentage):
     if(random.uniform(0,100) < percentage):
         return True
+
 
 def get_inputs():
     data_drop = input("Enter the percentage of data packets to drop: ")
@@ -120,12 +139,15 @@ def get_inputs():
     return data_drop, data_delay, ack_drop, ack_delay
 
 
+
+
 def main():
     data_drop, data_delay, ack_drop, ack_delay = get_inputs()
     ack_sock, data_sock = get_sockets()
     gui_sock = create_gui_socket()
-    recv_thread = threading.Thread(target=handle_recv, args=(ack_sock, gui_sock, ack_drop, ack_delay))
-    sender_thread = threading.Thread(target=handle_sender, args=(data_sock, gui_sock, data_drop, data_delay))
+    recv_thread = threading.Thread(target=handle_send, args=(ack_sock, gui_sock, ack_drop, ack_delay))
+    sender_thread = threading.Thread(target=handle_send, args=(data_sock, gui_sock, data_drop, data_delay))
+
 
     recv_thread.start()
     sender_thread.start()
@@ -133,9 +155,7 @@ def main():
     sender_thread.join()
 
 
+
+
 if __name__ == "__main__":
     main()
-
-
-
-

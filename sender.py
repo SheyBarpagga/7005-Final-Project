@@ -4,18 +4,25 @@ import sys
 import header
 import threading
 from ipaddress import ip_address, IPv4Address, IPv6Address
-import matplotlib.pyplot as plt
+import csv
+# import matplotlib.pyplot as plt
 from itertools import count
-from matplotlib.animation import FuncAnimation
+# from matplotlib.animation import FuncAnimation
 
 HOST = sys.argv[1]
 PORT = int(sys.argv[2])
+
+F = open("sender.csv", mode="w", newline='')
+WRITER = csv.writer(F)
+
 buffer = 1024
 connected = False
+
 sender_details = {
     "seq_num": 0,
     "ack_num": 1,
 }
+
 ack_list = []
 
 
@@ -47,6 +54,7 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     body = header.get_body(data)
     print("Received:")
     head.details()
+    write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn, head.get_ack())
     return (head, body, addr)
 
 
@@ -76,12 +84,13 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
 
         packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
         sock.sendto(packet, (HOST, PORT))
-
+        write_to_csv(message, seq_num, ack_num, syn, ack_flag)
         try:
             head = header.Header(0,0,0,0)
             while not check_ack(head):
                 head, body, addr = recv_convert(sock)
-            sender_details["seq_num"] += head.get_seq_num()    
+            sender_details["seq_num"] += head.get_ack_num()
+            write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
             get_syn_ack(head, sock)
             return True
         except socket.timeout:
@@ -91,16 +100,24 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
     return False
 
 
-
 def handshake(sock: socket.socket):
     if not send_message("", sock, 0, 0, 1, 0):
         print("handshake unsuccessful")
         exit(1)
 
-    
+def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
+    if ack_flag == 1:
+        data = ["Recieved ack", seq_num, ack_num, syn, ack_flag]
+        WRITER.writerow(data)
+    else:
+        data = ["Sent message: " + message, seq_num, ack_num, syn, ack_flag]
+        WRITER.writerow(data)
+
 
 def main():
-    sender = Sender()
+    # sender = Sender()
+
+
     try:
         sock = setup_socket()
         sock.settimeout(1.5)
@@ -182,60 +199,60 @@ if __name__ == '__main__':
 
 
 
-class Sender:
-    def __init__(self):
-        self.HOST = sys.argv[1]
-        self.PORT = int(sys.argv[2])
-        self.buffer = 1024
-        self.seq_num = 0
-        self.ack_num = 0
-        self.syn = 0
-        self.ack = 0
-        self.packet_count = 0
-        self.x_vals = []
-        self.y_vals = []
-        self.index = count()
+# class Sender:
+#     def __init__(self):
+#         self.HOST = sys.argv[1]
+#         self.PORT = int(sys.argv[2])
+#         self.buffer = 1024
+#         self.seq_num = 0
+#         self.ack_num = 0
+#         self.syn = 0
+#         self.ack = 0
+#         self.packet_count = 0
+#         self.x_vals = []
+#         self.y_vals = []
+#         self.index = count()
 
-    def get_host(self):
-        return self.HOST
+#     def get_host(self):
+#         return self.HOST
     
-    def get_seq_num(self):
-        return self.seq_num
+#     def get_seq_num(self):
+#         return self.seq_num
     
-    def get_ack_num(self):
-        return self.ack_num
+#     def get_ack_num(self):
+#         return self.ack_num
     
-    def get_syn(self):
-        return self.syn
+#     def get_syn(self):
+#         return self.syn
     
-    def get_ack(self):
-        return self.ack
+#     def get_ack(self):
+#         return self.ack
 
-    def animate(self, i):
-        self.x_vals.append(next(self.index))
-        self.y_vals.append(self.packet_count)
-        self.packet_count = 0
-        plt.cla()
-        plt.plot(self.x_vals, self.y_vals)
+#     def animate(self, i):
+#         self.x_vals.append(next(self.index))
+#         self.y_vals.append(self.packet_count)
+#         self.packet_count = 0
+#         plt.cla()
+#         plt.plot(self.x_vals, self.y_vals)
 
-    def run_graph(self):
-        anim = FuncAnimation(plt.gcf(), self.animate, interval=1000)
-        plt.tight_layout()
-        plt.show()
+#     def run_graph(self):
+#         anim = FuncAnimation(plt.gcf(), self.animate, interval=1000)
+#         plt.tight_layout()
+#         plt.show()
 
-    def run_graph(self):
-        anim = FuncAnimation(plt.gcf(), self.animate, interval=1000)
-        plt.tight_layout()
-        plt.show()
+#     def run_graph(self):
+#         anim = FuncAnimation(plt.gcf(), self.animate, interval=1000)
+#         plt.tight_layout()
+#         plt.show()
 
-    def run_sender(self, sender):
-        sock = self.setup_socket(self.HOST)
+#     def run_sender(self, sender):
+#         sock = self.setup_socket(self.HOST)
         
-        try:
-            sock = sender.setup_socket(sender.get_host())
-            sock.settimeout(3)
-        except ValueError as e:
-            print(e)
-            exit(1)
+#         try:
+#             sock = sender.setup_socket(sender.get_host())
+#             sock.settimeout(3)
+#         except ValueError as e:
+#             print(e)
+#             exit(1)
 
-        # sender.handshake(sock)
+#         # sender.handshake(sock)
