@@ -13,8 +13,8 @@ SEND_PORT = sys.argv[2]
 RECV_HOST = sys.argv[3]
 RECV_PORT = sys.argv[4]
 HOST = sys.argv[5]
-GUI_PORT = sys.argv[6]
-PORT = 34901
+#GUI_PORT = sys.argv[6]
+PORT = sys.argv[6]
 
 F = open("proxy.csv", mode="w", newline='')
 WRITER = csv.writer(F)
@@ -47,21 +47,21 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
         data = ["data: " + message, seq_num, ack_num, syn, ack_flag]
         WRITER.writerow(data)
 
-def create_gui_socket()-> socket.socket:
-    try:
-        ip = type(ip_address(HOST))
-    except ValueError:
-        print("Invalid IP")
-        exit(1)
-    if ip is IPv4Address:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((HOST, int(GUI_PORT)))
-    elif ip is IPv6Address:
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((HOST, int(GUI_PORT)))
-    return sock
+# def create_gui_socket()-> socket.socket:
+#     try:
+#         ip = type(ip_address(HOST))
+#     except ValueError:
+#         print("Invalid IP")
+#         exit(1)
+#     if ip is IPv4Address:
+#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#         sock.bind((HOST, int(GUI_PORT)))
+#     elif ip is IPv6Address:
+#         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+#         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#         sock.bind((HOST, int(GUI_PORT)))
+#     return sock
 
 
 
@@ -85,32 +85,42 @@ def create_packet(message: str, seq_num, ack_num, syn, ack_flag):
     return packet
 
 
-def gui_packet(data, msg):
-    head = header.bits_to_header(data)
-    return create_packet(msg, head.get_seq_num(), head.get_ack_num(), 0, 0)
+# def gui_packet(data, msg):
+#     head = header.bits_to_header(data)
+#     return create_packet(msg, head.get_seq_num(), head.get_ack_num(), 0, 0)
 
 
-def handle_packet(sock: socket.socket, gui_sock: socket.socket, drop, delay, data, addr):
+def handle_packet(sock: socket.socket, drop, delay, data, addr):
+    print("94")
     if drop_rand(drop):
+        print("96")
         head = header.bits_to_header(data)
         print("Dropped packet:\nsequence number: " + head.get_seq_num() + "\nack number: " + head.get_ack_num())
         write_to_csv("drop: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
-        gui_sock.sendto(gui_packet(data, "drop"), int(GUI_PORT))
+        # gui_sock.sendto(gui_packet(data, "drop"), int(GUI_PORT))
         return
     if sleep_rand(delay):
+        print("103")
         write_to_csv("delay: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
-        gui_sock.sendto(gui_packet(data, "delay"), int(GUI_PORT))
+        # gui_sock.sendto(gui_packet(data, "delay"), int(GUI_PORT))
+    print("104")
+    print(addr)
     sock.sendto(data, addr)
+    print("108")
+    
 
 
-def handle_send(sock: socket.socket, gui_sock: socket.socket, drop, delay):
+def handle_send(sock: socket.socket, drop, delay):
+    print("110")
     try:
         while True:
             data, _ = recv_print(sock)
             if(_ == (SEND_HOST, SEND_PORT)):
-                handle_packet(sock, gui_sock, drop, delay, data, (RECV_HOST, RECV_PORT))
+                print("115")
+                handle_packet(sock, drop, delay, data, (SEND_HOST, 4000))
             else:
-                handle_packet(sock, gui_sock, drop, delay, data, (SEND_HOST, SEND_PORT))
+                print("118")
+                handle_packet(sock, drop, delay, data, (RECV_HOST, 6000))
     except KeyboardInterrupt:
         print("Client shutdown proxy")
     finally:
@@ -119,14 +129,22 @@ def handle_send(sock: socket.socket, gui_sock: socket.socket, drop, delay):
 
 
 def sleep_rand(percentage):
-    if(random.uniform(0,100) < percentage):
-        time.sleep(random.uniform(0, 2.5))
-        return True
+    # print("130")
+    # if(random.uniform(0,100) < percentage):
+    #     #time.sleep(random.uniform(0, 2.5))
+    #     return True
+    return False
 
 
 def drop_rand(percentage):
-    if(random.uniform(0,100) < percentage):
-        return True
+    return False
+    # print("137")
+    # if(random.uniform(0,100) < percentage):
+    #     print("140")
+    #     return True
+    # else:
+    #     print("143")
+    #     return False
 
 
 def get_inputs():
@@ -143,9 +161,10 @@ def main():
     data_drop, data_delay, ack_drop, ack_delay = get_inputs()
     # ack_sock, data_sock = get_sockets()
     sock = create_socket(HOST, PORT)
-    gui_sock = create_gui_socket()
-    recv_thread = threading.Thread(target=handle_send, args=(sock, gui_sock, ack_drop, ack_delay))
-    sender_thread = threading.Thread(target=handle_send, args=(sock, gui_sock, data_drop, data_delay))
+    # gui_sock = create_gui_socket()
+    print("149")
+    recv_thread = threading.Thread(target=handle_send, args=(sock, ack_drop, ack_delay))
+    sender_thread = threading.Thread(target=handle_send, args=(sock, data_drop, data_delay))
 
 
     recv_thread.start()

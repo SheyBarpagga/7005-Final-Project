@@ -24,6 +24,7 @@ def create_gui_socket()-> tuple[socket.socket, tuple]:
     # addr
     try:
         ip = type(ip_address(HOST))
+        print("27")
     except ValueError:
         print("Invalid IP")
         exit(1)
@@ -119,13 +120,13 @@ def handshake(sock: socket.socket):
         exit(1)
 
 
-def send_ack(sock: socket.socket, addr, syn, gui_sock: socket.socket, gui_addr):
+def send_ack(sock: socket.socket, addr, syn):
     packet = create_packet(syn, 1)
     sock.sendto(packet, addr)
-    gui_sock.sendto(packet + "ACK_SENT".encode(), gui_addr)
+    #gui_sock.sendto(packet + "ACK_SENT".encode(), gui_addr)
 
 
-def handle_msg(sock: socket.socket, addr, gui_sock: socket.socket, gui_addr):
+def handle_msg(sock: socket.socket, addr):
     head = header.Header(0,0,0,0)
     try:
         head
@@ -135,8 +136,8 @@ def handle_msg(sock: socket.socket, addr, gui_sock: socket.socket, gui_addr):
             head, b, addr = recv_convert(sock)
         print("Recieved message:\n" + b)
         reciever_details["ack_num"] += len(b)
-        gui_sock.sendto(head + "DATA_RECV", gui_addr)
-        send_ack(sock, addr, 0, gui_sock, gui_addr)
+        #gui_sock.sendto(head + "DATA_RECV", gui_addr)
+        send_ack(sock, addr, 0)
     except socket.timeout:
         print("The other side has disconnected, the socket timed out")
         exit(0)
@@ -153,11 +154,11 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
 
 def main():
     sock = create_socket()
-    gui_sock, gui_addr = create_gui_socket()
+    # gui_sock, gui_addr = create_gui_socket()
     addr = handshake(sock)
     while True:
         try:
-            handle_msg(sock, addr, gui_sock, gui_addr)
+            handle_msg(sock, addr)
         except socket.timeout:
             print("socket timed out")
             F.close()

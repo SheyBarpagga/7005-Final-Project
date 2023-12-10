@@ -26,27 +26,27 @@ sender_details = {
 
 ack_list = []
 
-def create_gui_socket()-> tuple[socket.socket, tuple]:
-    # sock
-    # addr
-    try:
-        ip = type(ip_address(HOST))
-    except ValueError:
-        print("Invalid IP")
-        exit(1)
-    if ip is IPv4Address:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((HOST, 34879))
-        sock.listen(1)
-        client, addr = sock.accept()
-    elif ip is IPv6Address:
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((HOST, 34879))
-        sock.listen(1)
-        client, addr = sock.accept()
-    return client, addr
+# def create_gui_socket()-> tuple[socket.socket, tuple]:
+#     # sock
+#     # addr
+#     try:
+#         ip = type(ip_address(HOST))
+#     except ValueError:
+#         print("Invalid IP")
+#         exit(1)
+#     if ip is IPv4Address:
+#         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#         sock.bind((HOST, 34879))
+#         sock.listen(1)
+#         client, addr = sock.accept()
+#     elif ip is IPv6Address:
+#         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+#         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#         sock.bind((HOST, 34879))
+#         sock.listen(1)
+#         client, addr = sock.accept()
+#     return client, addr
 
 def setup_socket() -> socket.socket:
     try:
@@ -74,13 +74,13 @@ def create_packet(message: str, seq_num, ack_num, syn, ack_flag):
     return packet
 
 
-def recv_convert(sock: socket.socket, gui_sock: socket.socket, gui_addr)-> tuple[header.Header, bytes, tuple]:
+def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
     print("Received:")
     head.details()
-    gui_sock.sendto(create_packet("ACK_RECV", 0, 0, 0, 0), gui_addr)
+    #gui_sock.sendto(create_packet("ACK_RECV", 0, 0, 0, 0), gui_addr)
     write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
     return (head, body, addr)
 
@@ -104,7 +104,7 @@ def get_syn_ack(head: header.Header, sock: socket.socket):
         return
 
 
-def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag, gui_sock: socket.socket, gui_addr):
+def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
 
     attempts = 0
 
@@ -112,12 +112,12 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag, 
 
         packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
         sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
-        gui_sock.sendto(create_packet("DATA_SENT", 0, 0, 0, 0), gui_addr)
+        #gui_sock.sendto(create_packet("DATA_SENT", 0, 0, 0, 0), gui_addr)
         write_to_csv(message, seq_num, ack_num, syn, ack_flag)
         try:
             head = header.Header(0,0,0,0)
             while not check_ack(head):
-                head, body, addr = recv_convert(sock, gui_sock, gui_addr)
+                head, body, addr = recv_convert(sock)
             sender_details["seq_num"] += head.get_ack_num()
             write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
             get_syn_ack(head, sock)
@@ -129,8 +129,8 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag, 
     return False
 
 
-def handshake(sock: socket.socket, gui_sock: socket.socket, gui_addr):
-    if not send_message("", sock, 0, 0, 1, 0, gui_sock, gui_addr):
+def handshake(sock: socket.socket):
+    if not send_message("", sock, 0, 0, 1, 0):
         print("handshake unsuccessful")
         exit(1)
     print("handshake successful")
@@ -153,12 +153,12 @@ def main():
     except ValueError as e:
         print(e)
         exit(1)
-    gui_sock, gui_addr = create_gui_socket()
-    handshake(sock, gui_sock, gui_addr)
+    # gui_sock, gui_addr = create_gui_socket()
+    handshake(sock)
     try:
         while True:
             user_input = input("Enter message: ")
-            if not send_message(user_input, sock, sender_details["seq_num"], sender_details["ack_num"], 0, 0, gui_sock, gui_addr):
+            if not send_message(user_input, sock, sender_details["seq_num"], sender_details["ack_num"], 0, 0):
                 print("failed to send after 3 attempts")
                 exit()
     except KeyboardInterrupt:
