@@ -1,7 +1,7 @@
 Recieved message: ,0,0,1,0
 Sent ack,0,1,1,1
 Sent ack,1,1,0,1
-Recieved message: HELLO,1,1,0,0
+Recieved message: hello,1,1,0,0
 Sent ack,1,6,0,1
 Recieved message: my,7,1,0,0
 Sent ack,1,8,0,1
@@ -11,11 +11,3 @@ Recieved message: is,27,1,0,0
 Sent ack,1,14,0,1
 Recieved message: tak,41,1,0,0
 Sent ack,1,17,0,1
-Recieved message: what,58,1,0,0
-Sent ack,1,21,0,1
-Recieved message: is,79,1,0,0
-Sent ack,1,23,0,1
-Recieved message: your,102,1,0,0
-Sent ack,1,27,0,1
-Recieved message: name,129,1,0,0
-Sent ack,1,31,0,1
