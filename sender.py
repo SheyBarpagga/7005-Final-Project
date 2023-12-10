@@ -80,6 +80,8 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     body = header.get_body(data)
     print("Received:")
     head.details()
+    sender_details["ack_num"] = head.get_ack()
+    print("")
     #gui_sock.sendto(create_packet("ACK_RECV", 0, 0, 0, 0), gui_addr)
     write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
     return (head, body, addr)
@@ -101,39 +103,54 @@ def get_syn_ack(head: header.Header, sock: socket.socket):
         packet = create_packet("", 1, 1, 0, 1)
         sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
         print("You are now connected!")
+        sender_details["seq_num"] = 1
         return
 
 
+def send_handshake_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
+    
+    # sender_details["seq_num"] += len(message)
+    seq_num = sender_details["seq_num"] + len(message)
+    packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
+    sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
+    #gui_sock.sendto(create_packet("DATA_SENT", 0, 0, 0, 0), gui_addr)
+    write_to_csv(message, seq_num, ack_num, syn, ack_flag)
+    try:
+        head = header.Header(0,0,0,0)
+        while not check_ack(head):
+            head, body, addr = recv_convert(sock)
+        # sender_details["seq_num"] += head.get_ack_num() + len(message)
+        write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
+        get_syn_ack(head, sock)
+        return True
+    except socket.timeout:
+        print("No ack\n")
+        attempts += 1
+
+    return False
+
 def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
-
-    attempts = 0
-
-    while attempts < 3:
-
-        packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
-        sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
-        #gui_sock.sendto(create_packet("DATA_SENT", 0, 0, 0, 0), gui_addr)
-        write_to_csv(message, seq_num, ack_num, syn, ack_flag)
-        try:
-            head = header.Header(0,0,0,0)
-            while not check_ack(head):
-                head, body, addr = recv_convert(sock)
-            sender_details["seq_num"] += head.get_ack_num()
-            write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
-            get_syn_ack(head, sock)
-            return True
-        except socket.timeout:
-            print("No ack\n")
-            attempts += 1
+    sender_details["seq_num"] += len(message)
+    seq_num = sender_details["seq_num"] + len(message)
+    packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
+    sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
+    try:
+        head, body, addr = recv_convert(sock)
+        sender_details["ack_num"] = head.get_ack_num()
+        return True
+    except socket.timeout:
+        print("No ack\n")
 
     return False
 
 
 def handshake(sock: socket.socket):
-    if not send_message("", sock, 0, 0, 1, 0):
+    if not send_handshake_message("", sock, 0, 0, 1, 0):
         print("handshake unsuccessful")
+        print("")
         exit(1)
     print("handshake successful")
+    sender_details["ack_num"] = 1
 
 def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
     if ack_flag == 1:

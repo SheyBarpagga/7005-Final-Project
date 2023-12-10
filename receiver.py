@@ -54,7 +54,7 @@ def create_socket()-> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((HOST, PORT))
-        sock.settimeout(20)
+        sock.settimeout(2000)
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -97,6 +97,7 @@ def create_packet(syn, ack_flag) -> bytes:
     header_bits = head.bits()
     print(f'Sending Header:')
     head.details()
+    print("")
     write_to_csv("", reciever_details["seq_num"], reciever_details["ack_num"], syn, ack_flag)
     return header_bits
 
@@ -126,21 +127,37 @@ def send_ack(sock: socket.socket, addr, syn):
     #gui_sock.sendto(packet + "ACK_SENT".encode(), gui_addr)
 
 
-def handle_msg(sock: socket.socket, addr):
-    head = header.Header(0,0,0,0)
+def handle_msg(sock, addr):
     try:
-        head
-        addr
-        b = bytes(1)
-        while not check_seq(head, sock, addr):
-            head, b, addr = recv_convert(sock)
-        print("Recieved message:\n" + b)
-        reciever_details["ack_num"] += len(b)
-        #gui_sock.sendto(head + "DATA_RECV", gui_addr)
+        
+        head, body, addr = recv_convert(sock)
+        print("Recieved message:\n" + body)
+
+        reciever_details["ack_num"] = head.get_seq_num() + 1
+        reciever_details["seq_num"] = head.get_seq_num() # HERE
+        head.details()
         send_ack(sock, addr, 0)
     except socket.timeout:
         print("The other side has disconnected, the socket timed out")
         exit(0)
+
+# def handle_msg(sock: socket.socket, addr):
+#     head = header.Header(0,0,0,0)
+#     try:
+#         head
+#         addr
+#         b = bytes(1)
+#         while not check_seq(head, sock, addr):
+#             head, b, addr = recv_convert(sock)
+#         print("Recieved message:\n" + b)
+#         reciever_details["ack_num"] += len(b)
+#         reciever_details["seq_num"] = head.get_seq_num() # HERE
+#         head.details()
+#         #gui_sock.sendto(head + "DATA_RECV", gui_addr)
+#         send_ack(sock, addr, 0)
+#     except socket.timeout:
+#         print("The other side has disconnected, the socket timed out")
+#         exit(0)
         
 def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
     if ack_flag == 1:
