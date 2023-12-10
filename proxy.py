@@ -9,12 +9,12 @@ from ipaddress import ip_address, IPv4Address, IPv6Address
 
 
 SEND_HOST = sys.argv[1]
-SEND_PORT = sys.argv[2]
+SEND_PORT = int(sys.argv[2])
 RECV_HOST = sys.argv[3]
-RECV_PORT = sys.argv[4]
+RECV_PORT = int(sys.argv[4])
 HOST = sys.argv[5]
 #GUI_PORT = sys.argv[6]
-PORT = sys.argv[6]
+PORT = int(sys.argv[6])
 
 F = open("proxy.csv", mode="w", newline='')
 WRITER = csv.writer(F)
@@ -32,11 +32,11 @@ def create_socket(host, port)-> socket.socket:
     if ip is IPv4Address:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((host, int(port)))
+        sock.bind((host, port))
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((host, int(port)))
+        sock.bind((host, port))
     return sock
 
 def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
@@ -105,6 +105,10 @@ def handle_packet(sock: socket.socket, drop, delay, data, addr):
         # gui_sock.sendto(gui_packet(data, "delay"), int(GUI_PORT))
     print("104")
     print(addr)
+    head = header.bits_to_header(data)
+    print(f'Sent to {addr}:')
+    head.details()
+    print("")
     sock.sendto(data, addr)
     print("108")
     
@@ -114,13 +118,13 @@ def handle_send(sock: socket.socket, drop, delay):
     print("110")
     try:
         while True:
-            data, _ = recv_print(sock)
-            if(_ == (SEND_HOST, SEND_PORT)):
+            data, addr = recv_print(sock)
+            if(addr == (SEND_HOST, SEND_PORT)):
                 print("115")
-                handle_packet(sock, drop, delay, data, (SEND_HOST, 4000))
+                handle_packet(sock, drop, delay, data, (RECV_HOST, RECV_PORT))
             else:
                 print("118")
-                handle_packet(sock, drop, delay, data, (RECV_HOST, 6000))
+                handle_packet(sock, drop, delay, data, (SEND_HOST, SEND_PORT))
     except KeyboardInterrupt:
         print("Client shutdown proxy")
     finally:

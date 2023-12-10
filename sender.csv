@@ -1,3 +1,30 @@
 Sent message: ,0,0,1,0
-Sent message: ,0,0,1,0
-Sent message: ,0,0,1,0
+Recieved ack,0,1,1,1
+Recieved ack,0,1,1,1
+Sent message: HELLO,1,1,0,0
+Recieved ack,1,6,0,1
+Recieved ack,1,6,0,1
+Sent message: my,7,1,0,0
+Recieved ack,1,8,0,1
+Recieved ack,1,8,0,1
+Sent message: name,15,1,0,0
+Recieved ack,1,12,0,1
+Recieved ack,1,12,0,1
+Sent message: is,27,1,0,0
+Recieved ack,1,14,0,1
+Recieved ack,1,14,0,1
+Sent message: tak,41,1,0,0
+Recieved ack,1,17,0,1
+Recieved ack,1,17,0,1
+Sent message: what,58,1,0,0
+Recieved ack,1,21,0,1
+Recieved ack,1,21,0,1
+Sent message: is,79,1,0,0
+Recieved ack,1,23,0,1
+Recieved ack,1,23,0,1
+Sent message: your,102,1,0,0
+Recieved ack,1,27,0,1
+Recieved ack,1,27,0,1
+Sent message: name,129,1,0,0
+Recieved ack,1,31,0,1
+Recieved ack,1,31,0,1
