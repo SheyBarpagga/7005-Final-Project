@@ -119,6 +119,7 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
             while not check_ack(head):
                 head, body, addr = recv_convert(sock)
             sender_details["seq_num"] += head.get_ack_num()
+            sender_details["ack_num"] = head.get_ack_num()
             write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
             get_syn_ack(head, sock)
             return True

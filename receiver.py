@@ -54,7 +54,7 @@ def create_socket()-> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((HOST, PORT))
-        sock.settimeout(20)
+        sock.settimeout(200)
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
