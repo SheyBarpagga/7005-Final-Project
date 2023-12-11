@@ -102,7 +102,7 @@ def handle_packet(sock: socket.socket, drop, delay, data, addr):
         return
     if sleep_rand(delay):
         print("103")
-        write_to_csv("delay: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
+        # write_to_csv("delay: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
         # gui_sock.sendto(gui_packet(data, "delay"), int(GUI_PORT))
     print("104")
     print(addr)
@@ -136,6 +136,7 @@ def handle_send(sock: socket.socket, drop, delay):
 def sleep_rand(percentage):
     print("130")
     if(random.uniform(0,100) < percentage):
+        print("Sleep function running... ")
         time.sleep(random.uniform(0, 2.5))
         return True
     return False
