@@ -95,8 +95,9 @@ def handle_packet(sock: socket.socket, drop, delay, data, addr):
     if drop_rand(drop):
         print("96")
         head = header.bits_to_header(data)
-        print("Dropped packet:\nsequence number: " + head.get_seq_num() + "\nack number: " + head.get_ack_num())
-        write_to_csv("drop: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
+        print(head.get_seq_num())
+        # print("Dropped packet:\nsequence number: " + head.get_seq_num() + "\nack number: " + head.get_ack_num())
+        # write_to_csv("drop: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
         # gui_sock.sendto(gui_packet(data, "drop"), int(GUI_PORT))
         return
     if sleep_rand(delay):
@@ -144,7 +145,7 @@ def drop_rand(percentage):
     #return False
     print("137")
     if(random.uniform(0,100) < percentage):
-        print("140")
+        print("drop function ran")
         return True
     else:
         print("143")

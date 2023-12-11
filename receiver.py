@@ -76,6 +76,7 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
+    print(body)
     write_to_csv(body, head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
     return (head, body, addr)
 
@@ -88,7 +89,7 @@ def check_seq(head: header.Header, sock: socket.socket, addr):
     for h in seq_list:
         if h.get_seq_num() == head.get_seq_num():
             print("Recieved duplicate data\nsequence number: " + str(h.get_seq_num()))
-            sock.sendto(h.bits(), addr)
+            # sock.sendto(h.bits(), addr)
             return False
     seq_list.append(head)
     return True
@@ -133,7 +134,7 @@ def handle_msg(sock: socket.socket, addr):
         head
         addr
         b = bytes(1)
-        while not check_seq(head, sock, addr):
+        if not check_seq(head, sock, addr):
             head, b, addr = recv_convert(sock)
         print("Recieved message:\n" + b)
         reciever_details["ack_num"] += len(b)

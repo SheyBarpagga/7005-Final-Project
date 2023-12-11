@@ -1,18 +1,9 @@
 Sent message: ,0,0,1,0
 Recieved ack,0,1,1,1
 Recieved ack,0,1,1,1
-Sent message: a,1,1,0,0
-Recieved ack,1,2,0,1
-Recieved ack,1,2,0,1
-Sent message: b,3,2,0,0
-Recieved ack,1,3,0,1
-Recieved ack,1,3,0,1
-Sent message: c,6,3,0,0
-Recieved ack,1,4,0,1
-Recieved ack,1,4,0,1
-Sent message: d,10,4,0,0
-Recieved ack,1,5,0,1
-Recieved ack,1,5,0,1
-Sent message: e,15,5,0,0
-Sent message: e,15,5,0,0
-Sent message: e,15,5,0,0
+Sent message: hello,1,1,0,0
+Recieved ack,1,6,0,1
+Recieved ack,1,6,0,1
+Sent message: what,7,6,0,0
+Sent message: what,7,6,0,0
+Sent message: what,7,6,0,0

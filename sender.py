@@ -87,6 +87,7 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
 
 
 def check_ack(head: header.Header):
+    print("90")
     h: header.Header
     if head.get_syn() == 0 and head.get_ack() == 0:
         return False
@@ -108,7 +109,7 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag):
 
     attempts = 0
 
-    while attempts < 3:
+    while attempts < 20:
 
         packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
         sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
