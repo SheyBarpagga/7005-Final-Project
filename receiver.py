@@ -81,6 +81,7 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
 
 
 def check_seq(head: header.Header, sock: socket.socket, addr):
+    print("84")
     h: header.Header
     if head.get_ack() == 0 and head.get_ack_num() == 0  and head.get_syn() == 0  and head.get_seq_num() == 0:
         return False

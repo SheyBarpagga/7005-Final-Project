@@ -108,7 +108,7 @@ def handle_packet(sock: socket.socket, drop, delay, data, addr):
     head = header.bits_to_header(data)
     print(f'Sent to {addr}:')
     head.details()
-    print("")
+    print(f'{data} \n')
     sock.sendto(data, addr)
     print("108")
     
@@ -133,22 +133,22 @@ def handle_send(sock: socket.socket, drop, delay):
 
 
 def sleep_rand(percentage):
-    # print("130")
-    # if(random.uniform(0,100) < percentage):
-    #     #time.sleep(random.uniform(0, 2.5))
-    #     return True
+    print("130")
+    if(random.uniform(0,100) < percentage):
+        time.sleep(random.uniform(0, 2.5))
+        return True
     return False
 
 
 def drop_rand(percentage):
-    return False
-    # print("137")
-    # if(random.uniform(0,100) < percentage):
-    #     print("140")
-    #     return True
-    # else:
-    #     print("143")
-    #     return False
+    #return False
+    print("137")
+    if(random.uniform(0,100) < percentage):
+        print("140")
+        return True
+    else:
+        print("143")
+        return False
 
 
 def get_inputs():
@@ -167,8 +167,8 @@ def main():
     sock = create_socket(HOST, PORT)
     # gui_sock = create_gui_socket()
     print("149")
-    recv_thread = threading.Thread(target=handle_send, args=(sock, ack_drop, ack_delay))
-    sender_thread = threading.Thread(target=handle_send, args=(sock, data_drop, data_delay))
+    recv_thread = threading.Thread(target=handle_send, args=(sock, int(ack_drop), int(ack_delay)))
+    sender_thread = threading.Thread(target=handle_send, args=(sock, int(data_drop), int(data_delay)))
 
 
     recv_thread.start()
