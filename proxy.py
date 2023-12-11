@@ -122,11 +122,15 @@ def sleep_rand(percentage):
     if(random.uniform(0,100) < percentage):
         time.sleep(random.uniform(0, 2.5))
         return True
+    else:
+        return False
 
 
 def drop_rand(percentage):
     if(random.uniform(0,100) < percentage):
         return True
+    else:
+        return False
 
 
 def get_inputs():
