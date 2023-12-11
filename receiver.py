@@ -53,12 +53,12 @@ def create_socket()-> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((HOST, PORT))
-        sock.settimeout(20)
+        sock.settimeout(200)
     elif ip is IPv6Address:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((HOST, PORT))
-        # sock.settimeout(20)
+        sock.settimeout(200)
     return sock
     
 
@@ -86,7 +86,7 @@ def check_seq(head: header.Header, sock: socket.socket, addr):
     for h in seq_list:
         if h.get_seq_num() == head.get_seq_num():
             print("Recieved duplicate data\nsequence number: " + str(h.get_seq_num()))
-            sock.sendto(h.bits(), addr)
+            # sock.sendto(h.bits(), addr)
             return False
     seq_list.append(head)
     return True
