@@ -112,7 +112,7 @@ def update_plot(i, ax, sender, data):
 
         for packet in range(len(colors)):
             ax.plot(times, prev[packet], color=colors[packet], label=packets[packet])
-        set_grph()
+        set_grph(ax, sender)
 
 
 def grph(sender, data):

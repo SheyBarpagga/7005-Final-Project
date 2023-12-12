@@ -100,7 +100,6 @@ def get_syn_ack(head: header.Header, sock: socket.socket):
     if(head.get_syn() == 1 and head.get_ack() == 1):
         packet = create_packet("", 1, 1, 0, 1)
         sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
-        print("You are now connected!")
         return
 
 
