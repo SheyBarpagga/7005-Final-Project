@@ -80,7 +80,7 @@ def recv_convert(sock: socket.socket, gui_sock: socket.socket, gui_addr)-> tuple
     body = header.get_body(data)
     print("Received:")
     head.details()
-    gui_sock.sendto(create_packet("ACK_RECV", 0, 0, 0, 0), gui_addr)
+    gui_sock.sendto("ACK_RECV".encode(), gui_addr)
     write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
     return (head, body, addr)
 
@@ -108,11 +108,11 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag, 
 
     attempts = 0
 
-    while attempts < 3:
+    while attempts < 20:
 
         packet = create_packet(message, seq_num, ack_num, syn, ack_flag)
         sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
-        gui_sock.sendto(create_packet("DATA_SENT", 0, 0, 0, 0), gui_addr)
+        gui_sock.sendto("DATA_SNT".encode(), gui_addr)
         write_to_csv(message, seq_num, ack_num, syn, ack_flag)
         try:
             head = header.Header(0,0,0,0)

@@ -5,65 +5,43 @@ import matplotlib.animation as animation
 import time
 import header
 
-buffer = 1024
-
-server_descriptions = [('Sender', '10.0.0.34', 34879),
+HOSTS = [('Sender', '10.0.0.34', 34879),
                         ('Receiver', '10.0.0.34', 34989),
                         ('Proxy', '10.0.0.34', 34878)]
 
-packets = {
+packets = [
     'ACK_RECV',
-    'ACK_DROP'
-    'ACK_DELAY',
-    'DATA_RECV',
-    'DATA_DROP',
-    'DATA_DELAY',
+    'DROP_ACK',
+    'DLAY_ACK',
+    'DTA_RECV',
+    'DROP_DAT',
+    'DLAY_DAT',
     'ACK_SENT',
-    'DATA_SENT'
-}
+    'DATA_SNT'
+]
 
 servers = ["Sender", "Receiver", "Proxy"]
 
 colors = [
-    'red',
-    'green',
-    'lightcyan',
-    'blue',
-    'yellow',
-    'orange',
-    'purple',
     'pink',
+    'blue',
+    'green',
+    'orange',
+    'yellow',
+    'red',
+    'purple',
     'gray'
 ]
 
 
     
-def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes]:
-    data, addr = sock.recv(buffer)
-    head = header.bits_to_header(data) 
-    body = header.get_body(data)
-    return (head, body)    
+def recv_convert(sock: socket.socket)-> tuple[bytes]:
+    data = sock.recv(8)
+    if data.decode() == '':
+        return (0)
+    print(data.decode())
+    return data.decode()   
 
-def get_info(head: header.Header, body):
-    ack = head.get_ack()
-    if ack == 1:
-        if body == "drop":
-            return 'ACK_DROP'
-        elif body == "delay":
-            return 'ACK_DELAY'
-        elif body == "recv":
-            return 'ACK_RECV'
-        else:
-            return 'ACK_SENT'
-    else:
-        if body == "drop":
-            return 'DATA_DROP'
-        elif body == "delay":
-            return 'DATA_DELAY'
-        elif body == "recv":
-            return 'DATA_RECV'
-        else:
-            return 'DATA_SENT'
 
 
 def connect_to_server(sender, host, port, data):
@@ -71,18 +49,48 @@ def connect_to_server(sender, host, port, data):
     try:
         sock.connect((host, port))
         while True:
-            head, body= recv_convert(sock)
-            if head:
-                info = get_info(head, body)
-                print(info)
-                data[sender].append((info, time.time()))
+            body = recv_convert(sock)
+            if(body != 0):
+                data[sender].append((packets.index(body), time.time()))
     except KeyboardInterrupt:
-        pass
-    except ConnectionRefusedError:
-        print(f"Could not connect to server")
+        print("exiting...")
     finally:
         sock.close()
 
+def set_grph(ax, sender):
+        ax.set_ylabel('Number of Packets')
+        ax.set_xlabel('Time')
+        ax.set_title(f'Data from {["Sender", "Receiver", "Proxy"][sender]}')
+
+        ax.legend(loc='upper left')
+
+# def handle_socket(sock, label, data_queue):
+#     timestamps = []
+#     data_types = []
+
+#     plt.ion()  # Turn on interactive mode
+#     fig, ax = plt.subplots()
+
+#     while True:
+#         data = sock.recv(8)
+#         if not data:
+#             break
+
+#         timestamp = time.time()
+#         data_type = struct.unpack('8s', data)[0].decode('utf-8').strip('\x00')
+#         print(f"Received {data_type} from {label} at {timestamp}")
+
+#         # Enqueue data for plotting
+#         data_queue.put((timestamp, data_type))
+
+#         # Plot data
+#         timestamps.append(timestamp)
+#         data_types.append(data_type)
+#         ax.clear()
+#         ax.scatter(timestamps, data_types, color='blue')
+#         ax.set(xlabel='Time', ylabel='Data Type')
+#         plt.pause(0.1)
+#         # plt.show()
 
 def update_plot(i, ax, sender, data):
     if data[sender]:
@@ -90,42 +98,38 @@ def update_plot(i, ax, sender, data):
 
         times = [t for _, t in data[sender]]
         values = [v for v, _ in data[sender]]
+        print(data[sender])
 
-        packet_count_per_type = {ptype: 0 for ptype in range(len(colors))}
-
-        packet_history = {ptype: [] for ptype in range(len(colors))}
+        pckt_counts = {pckt: 0 for pckt in range(len(colors))}
+        print(pckt_counts)
+        prev = {pckt: [] for pckt in range(len(colors))}
 
         for value, time in zip(values, times):
-            packet_count_per_type[value] += 1
-            for ptype in packet_history:
-                packet_history[ptype].append(packet_count_per_type[ptype])
+            print(value)
+            pckt_counts[value] += 1
+            for pckt in prev:
+                prev[pckt].append(pckt_counts[pckt])
 
-        for packet_type in range(len(colors)):
-            ax.plot(times, packet_history[packet_type], color=colors[packet_type], label=packets[packet_type])
-
-        ax.set_ylabel('Number of Packets')
-        ax.set_xlabel('Time')
-        ax.set_title(f'Data from {["Sender", "Receiver", "Proxy"][sender]}')
-
-        ax.legend(loc='upper left', fontsize='small')
+        for packet in range(len(colors)):
+            ax.plot(times, prev[packet], color=colors[packet], label=packets[packet])
+        set_grph()
 
 
-def start_plot(sender, data):
+def grph(sender, data):
     fig, ax = plt.subplots()
-    ani = animation.FuncAnimation(fig, update_plot, fargs=(ax, sender, data), interval=1000)
+    ani = animation.FuncAnimation(fig, update_plot, fargs=(ax, sender, data), interval=1000, save_count=100)
     plt.show()
 
 
-def start(data):
+def init(data):
     processes = []
-
-    for i, (description, host, port) in enumerate(server_descriptions):
+    for i, (description, host, port) in enumerate(HOSTS):
         process = multiprocessing.Process(target=connect_to_server, args=(i, host, port, data))
         process.start()
         processes.append(process)
 
     for i in range(3):
-        plot_process = multiprocessing.Process(target=start_plot, args=(i, data))
+        plot_process = multiprocessing.Process(target=grph, args=(i, data))
         plot_process.start()
         processes.append(plot_process)
 
@@ -137,4 +141,5 @@ if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     manager = multiprocessing.Manager()
     data = manager.dict({0: manager.list(), 1: manager.list(), 2: manager.list()})
-    start(data)
+    init(data)
+
