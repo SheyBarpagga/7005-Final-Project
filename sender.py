@@ -8,6 +8,10 @@ import csv
 # import matplotlib.pyplot as plt
 from itertools import count
 # from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import threading
+import datetime
 
 HOST = sys.argv[1]
 PORT = int(sys.argv[2])
@@ -25,6 +29,10 @@ sender_details = {
 }
 
 ack_list = []
+
+sent_times = []
+ack_times = []
+
 
 # def create_gui_socket()-> tuple[socket.socket, tuple]:
 #     # sock
@@ -141,13 +149,42 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
     if ack_flag == 1:
         data = ["Recieved ack", seq_num, ack_num, syn, ack_flag]
         WRITER.writerow(data)
+        global ack_times
+        ack_times.append(datetime.datetime.now())
     else:
         data = ["Sent message: " + message, seq_num, ack_num, syn, ack_flag]
         WRITER.writerow(data)
+        global sent_times
+        sent_times.append(datetime.datetime.now()) 
+
+fig, ax = plt.subplots()
+xdata, ydata, ydata2 = [], [], []
+
+def update(frame):
+    xdata.append(datetime.datetime.now())
+    ydata.append(len(sent_times))
+    ydata2.append(len(ack_times))
+    ax.clear()
+    ax.plot(xdata, ydata, label='Data Sent')
+    ax.plot(xdata, ydata2, label='ACK Received')
+    ax.legend()
+    plt.xticks(rotation=45, ha="right")
+    plt.subplots_adjust(bottom=0.30)
+    plt.tight_layout()
+
+def run_animation():
+    ani = FuncAnimation(fig, update, interval=1000) 
+    plt.show()
+
+
+graph_thread = threading.Thread(target=run_animation)
+graph_thread.daemon = True
+graph_thread.start()
 
 
 def main():
     # sender = Sender()
+      
     try:
         sock = setup_socket()
         sock.settimeout(1.5)

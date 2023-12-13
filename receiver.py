@@ -3,6 +3,10 @@ import sys
 import header
 import csv
 from ipaddress import ip_address, IPv4Address, IPv6Address
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import threading
+import datetime
 
 seq_list = []
 
@@ -18,6 +22,9 @@ reciever_details = {
     "seq_num": 0,
     "ack_num": 1,
 }
+
+received_messages_times = []
+sent_acknowledgments_times = []
 
 def create_gui_socket()-> tuple[socket.socket, tuple]:
     # sock
@@ -73,6 +80,8 @@ def check_port():
         print("port must be an int")
 
 def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
+    global received_messages_times
+    received_messages_times.append(datetime.datetime.now()) 
     data, addr = sock.recvfrom(buffer)
     head = header.bits_to_header(data) 
     body = header.get_body(data)
@@ -123,6 +132,8 @@ def handshake(sock: socket.socket):
 
 
 def send_ack(sock: socket.socket, addr, syn):
+    global sent_acknowledgments_times
+    sent_acknowledgments_times.append(datetime.datetime.now()) 
     packet = create_packet(syn, 1)
     sock.sendto(packet, addr)
     #gui_sock.sendto(packet + "ACK_SENT".encode(), gui_addr)
@@ -151,10 +162,32 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
     else:
         data = ["Recieved message: " + message, seq_num, ack_num, syn, ack_flag]
         WRITER.writerow(data)
-       
+
+
+fig, ax = plt.subplots()
+xdata, yrecv, yack = [], [], []
+
+def update(frame):
+    xdata.append(datetime.datetime.now())
+    yrecv.append(len(received_messages_times))
+    yack.append(len(sent_acknowledgments_times))
+    ax.clear()
+    ax.plot(xdata, yrecv, label='Messages Received')
+    ax.plot(xdata, yack, label='ACKs Sent')
+    ax.legend()
+    plt.xticks(rotation=45, ha="right")
+    plt.subplots_adjust(bottom=0.30)
+    plt.tight_layout()
+
+def run_animation():
+    ani = FuncAnimation(fig, update, interval=1000)
+    plt.show()
         
 
 def main():
+    graph_thread = threading.Thread(target=run_animation)
+    graph_thread.daemon = True
+    graph_thread.start()
     sock = create_socket()
     # gui_sock, gui_addr = create_gui_socket()
     addr = handshake(sock)

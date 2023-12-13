@@ -6,6 +6,14 @@ import sys
 import header
 import csv
 from ipaddress import ip_address, IPv4Address, IPv6Address
+import datetime
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import threading
+
+dropped_packets_times = []
+delayed_packets_times = []
+received_packets_times = []
 
 
 SEND_HOST = sys.argv[1]
@@ -91,8 +99,10 @@ def create_packet(message: str, seq_num, ack_num, syn, ack_flag):
 
 
 def handle_packet(sock: socket.socket, drop, delay, data, addr):
+    global dropped_packets_times, delayed_packets_times, received_packets_times
     print("94")
     if drop_rand(drop):
+        dropped_packets_times.append(datetime.datetime.now())
         print("96")
         head = header.bits_to_header(data)
         print(head.get_seq_num())
@@ -101,9 +111,11 @@ def handle_packet(sock: socket.socket, drop, delay, data, addr):
         # gui_sock.sendto(gui_packet(data, "drop"), int(GUI_PORT))
         return
     if sleep_rand(delay):
+        delayed_packets_times.append(datetime.datetime.now())
         print("103")
         # write_to_csv("delay: " + header.get_body(data), head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())
         # gui_sock.sendto(gui_packet(data, "delay"), int(GUI_PORT))
+    received_packets_times.append(datetime.datetime.now())
     print("104")
     print(addr)
     head = header.bits_to_header(data)
@@ -162,9 +174,34 @@ def get_inputs():
 
 
 
+fig, ax = plt.subplots()
+xdata, ydrop, ydelay, yrecv = [], [], [], []
+
+def update(frame):
+    xdata.append(datetime.datetime.now())
+    ydrop.append(len(dropped_packets_times))
+    ydelay.append(len(delayed_packets_times))
+    yrecv.append(len(received_packets_times))
+    ax.clear()
+    ax.plot(xdata, ydrop, label='Packets Dropped')
+    ax.plot(xdata, ydelay, label='Packets Delayed')
+    ax.plot(xdata, yrecv, label='Packets Received')
+    ax.legend()
+    plt.xticks(rotation=45, ha="right")
+    plt.subplots_adjust(bottom=0.30)
+    plt.tight_layout()
+
+def run_animation():
+    ani = FuncAnimation(fig, update, interval=1000)
+    plt.show()
+
+
 
 def main():
     data_drop, data_delay, ack_drop, ack_delay = get_inputs()
+    graph_thread = threading.Thread(target=run_animation)
+    graph_thread.daemon = True
+    graph_thread.start()
     # ack_sock, data_sock = get_sockets()
     sock = create_socket(HOST, PORT)
     # gui_sock = create_gui_socket()
