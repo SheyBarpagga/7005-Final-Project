@@ -5,9 +5,9 @@ import matplotlib.animation as animation
 import time
 import header
 
-HOSTS = [('Sender', '10.0.0.34', 34879),
-                        ('Receiver', '10.0.0.34', 34989),
-                        ('Proxy', '10.0.0.34', 34878)]
+HOSTS = [('Sender', '10.0.0.47', 34879),
+                        ('Receiver', '10.0.0.47', 34989),
+                        ('Proxy', '10.0.0.47', 34878)]
 
 packets = [
     'ACK_RECV',

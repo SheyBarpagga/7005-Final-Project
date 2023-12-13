@@ -81,14 +81,16 @@ def recv_convert(sock: socket.socket)-> tuple[header.Header, bytes, tuple]:
     return (head, body, addr)
 
 
-def check_seq(head: header.Header, sock: socket.socket, addr):
+def check_seq(head: header.Header, sock: socket.socket, addr, body):
     h: header.Header
     if head.get_ack() == 0 and head.get_ack_num() == 0  and head.get_syn() == 0  and head.get_seq_num() == 0:
         return False
     for h in reversed(seq_list):
         if h.get_seq_num() == head.get_seq_num():
             print("Recieved duplicate data\nsequence number: " + str(h.get_seq_num()))
-            sock.sendto(h.bits(), addr)
+            a = header.Header(reciever_details["seq_num"], reciever_details["ack_num"] + len(body), 0, 1)
+            header_bits = a.bits()
+            sock.sendto(header_bits, addr)
             return False
     seq_list.append(head)
     return True
@@ -103,16 +105,24 @@ def create_packet(syn, ack_flag) -> bytes:
 
         
 def handshake(sock: socket.socket, gui_sock, gui_addr):
+    attempts = 0
     try:
         head, body, addr = recv_convert(sock)
         if head.get_syn() == 1:
-            send_ack(sock, addr, 1,gui_sock, gui_addr)
-            head, body, addr = recv_convert(sock)
-            print(head.get_ack())
-            if head.get_ack() == 1:
-                reciever_details["seq_num"] += 1
-                print("Handshake successful, you are now connected!")
-                return addr
+            while attempts < 20:
+                try:
+                    sock.settimeout(3)
+                    send_ack(sock, addr, 1,gui_sock, gui_addr)
+                    head, body, addr = recv_convert(sock)
+                    print(head.get_ack())
+                    if head.get_ack() == 1:
+                        reciever_details["seq_num"] += 1
+                        print("Handshake successful, you are now connected!")
+                        # sock.sendto("400".encode(), addr)
+                        sock.settimeout(200)
+                        return addr
+                except socket.timeout:
+                    attempts += 1
         else:
             print("handshake unsuccessful")
             exit(1)
@@ -133,7 +143,7 @@ def handle_msg(sock: socket.socket, addr, gui_sock: socket.socket, gui_addr):
         head
         addr
         b = bytes(1)
-        while not check_seq(head, sock, addr):
+        while not check_seq(head, sock, addr, b):
             head, b, addr = recv_convert(sock)
         print("Recieved message:\n" + b)
         reciever_details["ack_num"] += len(b)
@@ -156,7 +166,8 @@ def write_to_csv(message, seq_num, ack_num, syn, ack_flag):
 def main():
     sock = create_socket()
     gui_sock, gui_addr = create_gui_socket()
-    addr = handshake(sock, gui_sock, gui_addr)
+    addr = ('10.0.0.66', 34901)
+    # addr = handshake(sock, gui_sock, gui_addr)
     while True:
         try:
             handle_msg(sock, addr, gui_sock, gui_addr)

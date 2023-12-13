@@ -52,10 +52,12 @@ def setup_socket() -> socket.socket:
     try:
         if type(ip_address(HOST) is IPv4Address):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((HOST, PORT))
             return sock
         elif type(ip_address(HOST) is IPv6Address):
             sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind((HOST, PORT))
             return sock
         else:
@@ -90,9 +92,9 @@ def check_ack(head: header.Header):
     h: header.Header
     if head.get_syn() == 0 and head.get_ack() == 0:
         return False
-    for h in ack_list:
+    for h in reversed(ack_list):
         if h.get_ack_num() == head.get_ack_num():
-            return False
+            return True
     ack_list.append(head)
     return True
 
@@ -100,6 +102,8 @@ def get_syn_ack(head: header.Header, sock: socket.socket):
     if(head.get_syn() == 1 and head.get_ack() == 1):
         packet = create_packet("", 1, 1, 0, 1)
         sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
+        # while(header.get_body((sock.recvfrom(buffer)[0])) != "400"):
+        #     sock.sendto(packet, (PROXY_HOST, PROXY_PORT))
         return
 
 
@@ -117,6 +121,7 @@ def send_message(message, sock: socket.socket, seq_num, ack_num, syn, ack_flag, 
             head = header.Header(0,0,0,0)
             while not check_ack(head):
                 head, body, addr = recv_convert(sock, gui_sock, gui_addr)
+                # print(head)
             sender_details["seq_num"] += head.get_ack_num()
             write_to_csv("", head.get_seq_num(), head.get_ack_num(), head.get_syn(), head.get_ack())    
             get_syn_ack(head, sock)
@@ -153,7 +158,7 @@ def main():
         print(e)
         exit(1)
     gui_sock, gui_addr = create_gui_socket()
-    handshake(sock, gui_sock, gui_addr)
+    # handshake(sock, gui_sock, gui_addr)
     try:
         while True:
             user_input = input("Enter message: ")
